@@ -1,10 +1,11 @@
-import os
 
-def canonicalize_path(path: str) -> str:
+
+def canonicalize_path(path: str, cwd_context: str) -> str:
     if not path:
         return ""
-    # Normalize path by replacing '/' with '\' and converting to lowercase for case-insensitivity
+    # Normalize path by replacing '/' with '\\' and converting to lowercase for case-insensitivity
     normalized = path.replace('/', '\\').lower()
+    normalized_cwd = cwd_context.replace('/', '\\').lower()
     
     # Handle drive letters and absolute vs relative paths
 
@@ -23,8 +24,7 @@ def canonicalize_path(path: str) -> str:
     else:
         
         # If no drive letter given, we assume it's relative to the current working drive
-        cwd = os.getcwd().lower().replace('/', '\\')
-        drive = cwd[:2]
+        drive = normalized_cwd[:2]
 
         if normalized.startswith('\\'):
             # Path starts from root of current drive
