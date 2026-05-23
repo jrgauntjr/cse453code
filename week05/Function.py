@@ -1,10 +1,9 @@
-import os
-
-def canonicalize_path(path: str) -> str:
+def canonicalize_path(path: str, cwd_context: str) -> str:
     if not path:
         return ""
-    # Normalize path by replacing '/' with '\' and converting to lowercase for case-insensitivity
+    # Normalize path by replacing '/' with '\\' and converting to lowercase for case-insensitivity
     normalized = path.replace('/', '\\').lower()
+    normalized_cwd = cwd_context.replace('/', '\\').lower()
     
     # Handle drive letters and absolute vs relative paths
 
@@ -23,8 +22,7 @@ def canonicalize_path(path: str) -> str:
     else:
         
         # If no drive letter given, we assume it's relative to the current working drive
-        cwd = os.getcwd().lower().replace('/', '\\')
-        drive = cwd[:2]
+        drive = normalized_cwd[:2]
 
         if normalized.startswith('\\'):
             # Path starts from root of current drive
@@ -53,10 +51,9 @@ def canonicalize_path(path: str) -> str:
     # Return reconstructed final Windows canonical path
     return drive + '\\' + '\\'.join(resolved_stack)
 
-
-def are_homograph_paths(path1: str, path2: str) -> bool:
-    return canonicalize_path(path1) == canonicalize_path(path2) # This checks if the canonicalized paths match.
-
+    
+def are_homograph_paths(path1: str, path2: str, cwd_context: str) -> bool:
+    return canonicalize_path(path1, cwd_context) == canonicalize_path(path2, cwd_context)
 
 
 def main_menu():
@@ -70,8 +67,9 @@ def main_menu():
     elif choice == '2':
         p1 = input("Specify the first filename: ")
         p2 = input("Specify the second filename: ")
+        cwd_context = input("Specify the cwd context (example: C:\\Users\\Jacob): ")
 
-        homograph_result = are_homograph_paths(p1, p2)
+        homograph_result = are_homograph_paths(p1, p2, cwd_context)
         if homograph_result:
             print("The paths are homographs")
         else:
