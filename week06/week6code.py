@@ -1,6 +1,32 @@
 def genQuery(username: str, password: str):
     return f"SELECT authenticate FROM password_auth WHERE username = '{username}' AND password = '{password}'"
 
+def genQueryWeak(username: str, password: str):
+    username = addWeakProtection(username)
+    password = addWeakProtection(password)
+    return f"SELECT authenticate FROM password_auth WHERE username = '{username}' AND password = '{password}'"
+    
+
+
+def addWeakProtection(query: str):
+    cleaned = query
+
+    # Remove obvious inline comment and statement separator tokens.
+    for token in ("--", "#", "/*", "*/", ";"):
+        cleaned = cleaned.replace(token, "")
+
+    # Remove a few common SQL keywords in a case-insensitive way.
+    for keyword in ("union", "drop", "insert", "delete", "update"):
+        lower_cleaned = cleaned.lower()
+        while keyword in lower_cleaned:
+            idx = lower_cleaned.find(keyword)
+            cleaned = cleaned[:idx] + cleaned[idx + len(keyword):]
+            lower_cleaned = cleaned.lower()
+
+    return cleaned
+
+
+
 def testValid(query_fn=genQuery):
     print("=== testValid: legitimate input ===")
     test_cases = [
@@ -28,6 +54,44 @@ def testAddState(query_fn=genQuery):
         print(f"username={username!r}, password={password!r}")
         print(f"  -> {_format_result(result)}\n")
 
+def testComment(query_fn=genQuery):
+    print("=== testComment: comment-based injection ===")
+    test_cases = [
+        ("admin'--", "irrelevant"), # Each of these are a case of a "Comment" this uses --
+        ("admin' #", "irrelevant"), # This uses a hashtag
+        ("admin'/*", "irrelevant"), # this uses /*
+        ("' OR '1'='1'--", "irrelevant"),
+    ]
+    for username, password in test_cases:
+        result = query_fn(username, password)
+        print(f"username={username!r}, password={password!r}")
+        print(f"  -> {_format_result(result)}\n")
+
+def testUnion(query_fn=genQuery):
+    print("=== testUnion: UNION injection ===")
+    test_cases = [
+        ("' UNION SELECT 1--", "x"),
+        ("' UNION SELECT username, password FROM password_auth--", "x"),
+        ("' UNION SELECT NULL, NULL--", "x"),
+        ("x' UNION SELECT 1 WHERE '1'='1", "x"),
+    ]
+    for username, password in test_cases:
+        result = query_fn(username, password)
+        print(f"username={username!r}, password={password!r}")
+        print(f"  -> {_format_result(result)}\n")
+
+def testTautology(query_fn=genQuery):
+    print("=== testTautology: Tautology injection ===")
+    test_cases = [
+        ("' OR '1'='1', 'x'"),
+        ("' OR 1=1 --", "x"),
+        ("admin' OR '1'='1", "x"),
+        ("x", "' OR '1'='1"),
+    ]
+    for username, password in test_cases:
+        result = query_fn(username, password)
+        print(f"username={username!r}, password={password!r}")
+        print(f"  -> {_format_result(result)}\n")
 
 def run_all_tests(query_fn, title: str):
     print("\n" + "=" * 70)
